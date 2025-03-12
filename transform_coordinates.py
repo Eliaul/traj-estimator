@@ -1,0 +1,138 @@
+import numpy as np
+from scipy.spatial.transform import Rotation as R
+
+
+def load_data(file_path, delimiter=' '):
+    """
+    从文件加载数据
+    :param file_path: 文件路径
+    :param delimiter: 分隔符，默认为空格
+    :return: 数据列表（每行是一个列表）
+    """
+    with open(file_path, 'r') as file:
+        data = [line.strip().split(delimiter) for line in file if line.strip()]
+    return data
+
+
+def parse_pose(data, time_col, pos_cols, orient_cols, orient_format='quat'):
+    """
+    解析位姿数据，提取时间、位置和姿态
+    :param data: 原始数据列表
+    :param time_col: 时间列的索引
+    :param pos_cols: 位置列的索引列表 [x, y, z]
+    :param orient_cols: 姿态列的索引列表 [qx, qy, qz, qw] 或 [roll, pitch, yaw]
+    :param orient_format: 姿态格式，'quat' 或 'euler'
+    :return: 时间 (float), 平移向量 (np.array), 旋转矩阵 (np.array)
+    """
+    time = float(data[time_col])
+    position = np.array([float(data[i]) for i in pos_cols])
+
+    if orient_format == 'quat':
+        qx, qy, qz, qw = [float(data[i]) for i in orient_cols]
+        rotation = R.from_quat([qx, qy, qz, qw]).as_matrix()
+    elif orient_format == 'euler':
+        roll, pitch, yaw = [float(data[i]) for i in orient_cols]
+        rotation = R.from_euler('xyz', [roll, pitch, yaw], degrees=False).as_matrix()
+    else:
+        raise ValueError("Invalid orientation format. Use 'quat' or 'euler'.")
+
+    return time, position, rotation
+
+
+def transformation_to_se3(translation, rotation):
+    """
+    将平移向量和旋转矩阵组合为 SE(3) 矩阵
+    :param translation: 平移向量 (np.array)
+    :param rotation: 旋转矩阵 (np.array)
+    :return: SE(3) 矩阵（4x4 numpy 数组）
+    """
+    se3_matrix = np.eye(4)
+    se3_matrix[:3, :3] = rotation
+    se3_matrix[:3, 3] = translation
+    return se3_matrix
+
+
+def invert_se3(matrix):
+    """
+    计算 SE(3) 矩阵的逆
+    :param matrix: SE(3) 矩阵（4x4 numpy 数组）
+    :return: 逆矩阵（4x4 numpy 数组）
+    """
+    rotation = matrix[:3, :3]
+    translation = matrix[:3, 3]
+    inv_rotation = rotation.T
+    inv_translation = -inv_rotation @ translation
+    return transformation_to_se3(inv_translation, inv_rotation)
+
+
+def multiply_se3(mat1, mat2):
+    """
+    计算两个 SE(3) 矩阵的乘积
+    :param mat1: 第一个 SE(3) 矩阵（4x4 numpy 数组）
+    :param mat2: 第二个 SE(3) 矩阵（4x4 numpy 数组）
+    :return: 乘积矩阵（4x4 numpy 数组）
+    """
+    return mat1 @ mat2
+
+
+def save_data(file_path, matrix, delimiter=' ', decimal_places=6):
+    """
+    保存 SE(3) 矩阵到文件，并指定保留小数位数
+    :param file_path: 文件路径
+    :param matrix: SE(3) 矩阵（4x4 numpy 数组）
+    :param delimiter: 分隔符，默认为空格
+    :param decimal_places: 保留的小数位数，默认为 6
+    """
+    with open(file_path, 'w') as file:
+        for row in matrix:
+            formatted_row = [f"{x:.{decimal_places}f}" for x in row]
+            line = delimiter.join(formatted_row)
+            file.write(line + '\n')
+
+
+def main(A_T_B_file, output_file, time_col, pos_cols, orient_cols, orient_format='quat', delimiter=' ',
+         decimal_places=6):
+    """
+    主函数：加载数据、计算 A_T_C 并保存结果
+    :param A_T_B_file: A_T_B 文件路径
+    :param output_file: 输出文件路径
+    :param time_col: 时间列的索引
+    :param pos_cols: 位置列的索引列表 [x, y, z]
+    :param orient_cols: 姿态列的索引列表 [qx, qy, qz, qw] 或 [roll, pitch, yaw]
+    :param orient_format: 姿态格式，'quat' 或 'euler'
+    :param delimiter: 分隔符，默认为空格
+    :param decimal_places: 保留的小数位数，默认为 6
+    """
+    # 定义常量矩阵 C_T_B
+    C_T_B_translation = np.array([-0.012713, -0.001295, 0.184497])  # 平移向量
+    C_T_B_rotation = np.array([-0.099438, -0.992995, -0.063813,
+                      0.994106, -0.101923, 0.036942,
+                      -0.043187, -0.059763, 0.997278]).reshape(3, 3)  # 旋转矩阵
+    C_T_B = transformation_to_se3(C_T_B_translation, C_T_B_rotation)
+
+    # 加载 A_T_B 数据
+    A_T_B_data = load_data(A_T_B_file, delimiter)
+    time, A_T_B_translation, A_T_B_rotation = parse_pose(A_T_B_data[0], time_col, pos_cols, orient_cols, orient_format)
+    A_T_B = transformation_to_se3(A_T_B_translation, A_T_B_rotation)
+
+    # 计算 A_T_C = A_T_B * C_T_B.inv()
+    C_T_B_inv = invert_se3(C_T_B)
+    A_T_C = multiply_se3(A_T_B, C_T_B_inv)
+
+    # 保存结果
+    save_data(output_file, A_T_C, delimiter, decimal_places)
+    print(f"转换完成！结果已保存到 {output_file}")
+
+
+if __name__ == "__main__":
+    # 示例调用
+    A_T_B_file = "data/tls_T_xt32.txt"  # A_T_B 文件路径
+    output_file = "data/tls_T_imu.txt"  # 输出文件路径
+    time_col = 0  # 时间列的索引
+    pos_cols = [1, 2, 3]  # 位置列的索引 [x, y, z]
+    orient_cols = [4, 5, 6, 7]  # 姿态列的索引 [qx, qy, qz, qw]
+    orient_format = 'quat'  # 姿态格式，'quat' 或 'euler'
+    delimiter = ' '  # 分隔符
+    decimal_places = 4  # 保留的小数位数
+
+    main(A_T_B_file, output_file, time_col, pos_cols, orient_cols, orient_format, delimiter, decimal_places)
