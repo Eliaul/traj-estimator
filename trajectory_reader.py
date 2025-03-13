@@ -1,3 +1,6 @@
+import numpy as np
+from scipy.spatial.transform import Rotation
+
 def read_trajectory_data(file_path, delimiter=None, column_names=None):
     """
     读取轨迹数据文件并解析为字典列表
@@ -8,6 +11,9 @@ def read_trajectory_data(file_path, delimiter=None, column_names=None):
     """
     if column_names is None:
         raise ValueError("必须提供 column_names 参数！")
+
+    # 检查是否包含四元数列
+    has_quaternion = all(col in column_names for col in ['qx', 'qy', 'qz', 'qw'])
 
     data = []
     with open(file_path, 'r') as file:
@@ -21,5 +27,21 @@ def read_trajectory_data(file_path, delimiter=None, column_names=None):
 
             # 将每行数据转换为字典
             row = {column_names[i]: float(values[i]) for i in range(len(column_names))}
+
+            if has_quaternion:
+                qx = row['qx']
+                qy = row['qy']
+                qz = row['qz']
+                qw = row['qw']
+
+                # 将四元数转换为欧拉角（单位：弧度）
+                rotation = Rotation.from_quat([qx, qy, qz, qw])
+                euler_angles = rotation.as_euler('xyz', degrees=True)  # 返回 roll, pitch, yaw
+
+                # 将欧拉角存入字典
+                row['roll'] = euler_angles[0]
+                row['pitch'] = euler_angles[1]
+                row['yaw'] = euler_angles[2]
+
             data.append(row)
     return data

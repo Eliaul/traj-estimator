@@ -2,7 +2,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 
-def load_data(file_path, delimiter=' '):
+def load_data(file_path, delimiter=None):
     """
     从文件加载数据
     :param file_path: 文件路径
@@ -10,7 +10,10 @@ def load_data(file_path, delimiter=' '):
     :return: 数据列表（每行是一个列表）
     """
     with open(file_path, 'r') as file:
-        data = [line.strip().split(delimiter) for line in file if line.strip()]
+        if delimiter:
+            data = [line.strip().split(delimiter) for line in file if line.strip()]
+        else:
+            data = [line.strip().split() for line in file if line.strip()]
     return data
 
 
