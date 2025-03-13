@@ -151,8 +151,8 @@ def main(input_file, output_file, time_col, pos_cols, orient_cols, orient_format
 
 if __name__ == "__main__":
     # 示例调用
-    input_file = "data/tls_T_xt32.txt"  # 输入文件路径
-    output_file = "data/output.txt"  # 输出文件路径
+    input_file = "data/tls_T_imu.txt"  # 输入文件路径
+    output_file = "data/ref_traj.txt"  # 输出文件路径
     time_col = 0  # 时间列的索引
     pos_cols = [1, 2, 3]  # 位置列的索引 [x, y, z]
     orient_cols = [4, 5, 6, 7]  # 姿态列的索引 [qx, qy, qz, qw]

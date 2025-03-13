@@ -75,16 +75,16 @@ def multiply_se3(mat1, mat2):
     return mat1 @ mat2
 
 
-def save_data(file_path, matrix, delimiter=' ', decimal_places=6):
+def save_data(file_path, data, delimiter=' ', decimal_places=6):
     """
-    保存 SE(3) 矩阵到文件，并指定保留小数位数
+    保存转换后的数据到文件，并指定保留小数位数
     :param file_path: 文件路径
-    :param matrix: SE(3) 矩阵（4x4 numpy 数组）
+    :param data: 转换后的数据列表
     :param delimiter: 分隔符，默认为空格
     :param decimal_places: 保留的小数位数，默认为 6
     """
     with open(file_path, 'w') as file:
-        for row in matrix:
+        for row in data:
             formatted_row = [f"{x:.{decimal_places}f}" for x in row]
             line = delimiter.join(formatted_row)
             file.write(line + '\n')
@@ -93,7 +93,7 @@ def save_data(file_path, matrix, delimiter=' ', decimal_places=6):
 def main(A_T_B_file, output_file, time_col, pos_cols, orient_cols, orient_format='quat', delimiter=' ',
          decimal_places=6):
     """
-    主函数：加载数据、计算 A_T_C 并保存结果
+    主函数：加载数据、逐行计算 A_T_C 并保存结果
     :param A_T_B_file: A_T_B 文件路径
     :param output_file: 输出文件路径
     :param time_col: 时间列的索引
@@ -105,22 +105,35 @@ def main(A_T_B_file, output_file, time_col, pos_cols, orient_cols, orient_format
     """
     # 定义常量矩阵 C_T_B
     C_T_B_translation = np.array([-0.012713, -0.001295, 0.184497])  # 平移向量
-    C_T_B_rotation = np.array([-0.099438, -0.992995, -0.063813,
-                      0.994106, -0.101923, 0.036942,
-                      -0.043187, -0.059763, 0.997278]).reshape(3, 3)  # 旋转矩阵
+    C_T_B_rotation = np.array([
+        -0.099438, -0.992995, -0.063813,
+        0.994106, -0.101923, 0.036942,
+        -0.043187, -0.059763, 0.997278
+    ]).reshape(3, 3)  # 旋转矩阵
     C_T_B = transformation_to_se3(C_T_B_translation, C_T_B_rotation)
+    C_T_B_inv = invert_se3(C_T_B)  # 计算 C_T_B 的逆矩阵
 
     # 加载 A_T_B 数据
     A_T_B_data = load_data(A_T_B_file, delimiter)
-    time, A_T_B_translation, A_T_B_rotation = parse_pose(A_T_B_data[0], time_col, pos_cols, orient_cols, orient_format)
-    A_T_B = transformation_to_se3(A_T_B_translation, A_T_B_rotation)
+    transformed_data = []
 
-    # 计算 A_T_C = A_T_B * C_T_B.inv()
-    C_T_B_inv = invert_se3(C_T_B)
-    A_T_C = multiply_se3(A_T_B, C_T_B_inv)
+    for row in A_T_B_data:
+        # 解析每一行的位姿数据
+        time, A_T_B_translation, A_T_B_rotation = parse_pose(row, time_col, pos_cols, orient_cols, orient_format)
+        A_T_B = transformation_to_se3(A_T_B_translation, A_T_B_rotation)
+
+        # 计算 A_T_C = A_T_B * C_T_B.inv()
+        A_T_C = multiply_se3(A_T_B, C_T_B_inv)
+
+        # 将 SE(3) 矩阵转换为平移向量和四元数
+        translation = A_T_C[:3, 3]
+        rotation = R.from_matrix(A_T_C[:3, :3]).as_quat()
+
+        # 将结果添加到转换后的数据列表中
+        transformed_data.append([time] + translation.tolist() + rotation.tolist())
 
     # 保存结果
-    save_data(output_file, A_T_C, delimiter, decimal_places)
+    save_data(output_file, transformed_data, delimiter, decimal_places)
     print(f"转换完成！结果已保存到 {output_file}")
 
 
@@ -133,6 +146,6 @@ if __name__ == "__main__":
     orient_cols = [4, 5, 6, 7]  # 姿态列的索引 [qx, qy, qz, qw]
     orient_format = 'quat'  # 姿态格式，'quat' 或 'euler'
     delimiter = ' '  # 分隔符
-    decimal_places = 4  # 保留的小数位数
+    decimal_places = 6  # 保留的小数位数
 
     main(A_T_B_file, output_file, time_col, pos_cols, orient_cols, orient_format, delimiter, decimal_places)
