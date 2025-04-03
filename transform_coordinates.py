@@ -107,11 +107,11 @@ def main(A_T_B_file, output_file, time_col, pos_cols, orient_cols, orient_format
     :param decimal_places: 保留的小数位数，默认为 6
     """
     # 定义常量矩阵 C_T_B
-    C_T_B_translation = np.array([-0.012713, -0.001295, 0.184497])  # 平移向量
+    C_T_B_translation = np.array([-0.019978, -0.075000, -0.036192])  # 平移向量
     C_T_B_rotation = np.array([
-        -0.099438, -0.992995, -0.063813,
-        0.994106, -0.101923, 0.036942,
-        -0.043187, -0.059763, 0.997278
+        0.999168, -0.040781, 0.000593,
+        -0.040781, -0.999168, 0.000000,
+        0.000592, -0.000024, -1.000000
     ]).reshape(3, 3)  # 旋转矩阵
     C_T_B = transformation_to_se3(C_T_B_translation, C_T_B_rotation)
     C_T_B_inv = invert_se3(C_T_B)  # 计算 C_T_B 的逆矩阵
@@ -142,8 +142,8 @@ def main(A_T_B_file, output_file, time_col, pos_cols, orient_cols, orient_format
 
 if __name__ == "__main__":
     # 示例调用
-    A_T_B_file = "data/tls_T_xt32.txt"  # A_T_B 文件路径
-    output_file = "data/tls_T_imu.txt"  # 输出文件路径
+    A_T_B_file = "data/cororadar/b_T_lidar.txt"  # A_T_B 文件路径
+    output_file = "data/cororadar/b_T_imu.txt"  # 输出文件路径
     time_col = 0  # 时间列的索引
     pos_cols = [1, 2, 3]  # 位置列的索引 [x, y, z]
     orient_cols = [4, 5, 6, 7]  # 姿态列的索引 [qx, qy, qz, qw]
