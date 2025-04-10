@@ -4,12 +4,12 @@ from trajectory_plotter import *
 
 if __name__ == "__main__":
     # 文件路径
-    file_names = ['data/cororadar/odometry_SO_LIO.txt', 'data/cororadar/odometry_SO_RIO.txt']  # 文件名列表
+    file_names = ['./data/cororadar/outdoors_run_0/odometry_SO_LIO.txt']  # 文件名列表
     file_paths = [os.path.join(os.getcwd(), file_name) for file_name in file_names]  # 拼接路径
 
     # 自定义分隔符和列名
     delimiter = None  # 设置为 None，表示使用任意空白字符分割
-    column_names = ['time', 'roll', 'pitch', 'yaw', 'x', 'y', 'z']  # 列名
+    column_names = ['time', 'x', 'y', 'z', 'qx', 'qy', 'qz', 'qw']  # 列名
     # column_names = ['time', 'x', 'y', 'z', 'qx', 'qy', 'qz', 'qw']  # 列名
 
     # 读取多个轨迹数据
@@ -26,7 +26,7 @@ if __name__ == "__main__":
             exit(1)
 
     # 参考轨迹
-    ref_name = 'data/cororadar/b_T_imu.txt'
+    ref_name = './data/cororadar/outdoors_run_1/b_T_lidar.txt'
     ref_column = ['time', 'x', 'y', 'z', 'qx', 'qy', 'qz', 'qw']
     ref_path = os.path.join(os.getcwd(), ref_name)
     ref_data = read_trajectory_data(ref_path, delimiter, ref_column)
